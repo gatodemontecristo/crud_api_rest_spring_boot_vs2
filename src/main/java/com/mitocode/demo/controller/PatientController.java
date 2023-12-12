@@ -1,8 +1,12 @@
 package com.mitocode.demo.controller;
 
+import com.mitocode.demo.dto.PatientDTO;
+import com.mitocode.demo.dto.PatientRecord;
 import com.mitocode.demo.model.Patient;
 import com.mitocode.demo.service.IPatientService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.modelmapper.ModelMapper;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.server.mvc.WebMvcLinkBuilder;
 import org.springframework.http.HttpStatus;
@@ -22,18 +26,35 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 public class PatientController {
 
     private final IPatientService service;
+    private final ModelMapper mapper;
 
     @GetMapping
-    public ResponseEntity<List<Patient>>  findAll() throws Exception{
-        List<Patient> list = service.findAll();
+    public ResponseEntity<List<PatientDTO>>  findAll() throws Exception{
+       /* List<PatientRecord> list = service.findAll().stream().map(e -> {
+            return new PatientRecord(e.getIdPatient(),
+                    e.getFirstName(),
+                    e.getLastName(),
+                    e.getDni(),
+                    e.getAddress(),
+                    e.getPhone(),
+                    e.getEmail());
+
+        }).toList();*/
+
+        //ModelMapper mapper = new ModelMapper();
+        List<PatientDTO> list = service.findAll().stream().map(e ->
+                convertToDto(e)).toList();
 
         return new ResponseEntity<>(list, HttpStatus.OK);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Patient> findById(@PathVariable("id") Integer id) throws Exception{
+    public ResponseEntity<PatientDTO> findById(@PathVariable("id") Integer id) throws Exception{
         Patient obj = service.findById(id);
-        return new ResponseEntity<>(obj,HttpStatus.OK);
+
+        PatientDTO dto = convertToDto(obj);
+
+        return new ResponseEntity<>(dto,HttpStatus.OK);
     }
 
     /*@PostMapping
@@ -43,8 +64,8 @@ public class PatientController {
     }*/
 
     @PostMapping
-    public ResponseEntity<Patient> save(@RequestBody Patient patient) throws Exception{
-        Patient obj = service.save(patient);
+    public ResponseEntity<Void> save(@Valid @RequestBody PatientDTO dto) throws Exception{
+        Patient obj = service.save(convertToEntity(dto));
 
         //localhost:8000/patients/7
         URI location = ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}").buildAndExpand(obj.getIdPatient()).toUri();
@@ -53,10 +74,10 @@ public class PatientController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Patient> update(@RequestBody Patient patient,@PathVariable("id") Integer id) throws Exception{
-        Patient obj =  service.update(patient, id);
+    public ResponseEntity<PatientDTO> update(@Valid @RequestBody PatientDTO dto,@PathVariable("id") Integer id) throws Exception{
+        Patient obj =  service.update(convertToEntity(dto), id);
 
-        return new ResponseEntity<>(obj,HttpStatus.OK);
+        return new ResponseEntity<>(convertToDto(obj),HttpStatus.OK);
     }
 
     @DeleteMapping("/{id}")
@@ -79,5 +100,13 @@ public class PatientController {
 
        return resource;
    }
+
+    private PatientDTO convertToDto(Patient obj){
+            return mapper.map(obj, PatientDTO.class);
+    }
+
+    private Patient convertToEntity(PatientDTO dto){
+        return mapper.map(dto, Patient.class);
+    }
 
 }
